@@ -1,11 +1,3 @@
-**User Story：**
-> 身為學生，我希望可以透過 AI Agent 回報校園問題，快速找到適當的負責單位並解決問題，而不需要自己花時間搜尋相關資訊。
-# 南大智慧校園問題解決 Agent
-
-本專題目標是讓學生以自然語言描述校園問題，
-由系統判斷問題類型，搜尋固定校園資料，
-並回傳負責單位與處理流程。
-
 ## User Story
 
 身為國立臺南大學學生，
@@ -14,48 +6,25 @@
 讓系統協助判斷問題類型、負責單位與處理方式，
 降低自行搜尋校方網站的成本。
 
-## Scope
+## 範圍與固定資料
 
-目前支援：
-- 課務
-- 學生證
-- 宿舍
-- 獎學金
-- 校園設施
+**In Scope**
 
-## Out of Scope
+- 冷氣故障 → 設備問題 → 總務相關單位 → 設備報修
+- 飲水機故障 → 設備問題 → 總務相關單位 → 設備維修
+- 教室燈光故障 → 設備問題 → 總務相關單位 → 設備維修
+- 校園環境髒亂 → 環境問題 → 清潔相關單位 → 環境回報
 
-目前不包含：
-- 即時爬取校方網站
-- 登入校務系統
-- 自動送出申請
-- 自動報修
-- 預約與付款
+**Out of Scope**
 
-## System Flow
+- 不即時爬取校方網站
+- 不登入校務系統
+- 不自動送出申請
+- 不處理真實校園問題
+- 不使用學生個人資料
 
-User Question
-→ LLM Issue Analysis
-→ Structured JSON
-→ Fixed Campus Knowledge Base
-→ Department / Procedure
-→ Response
+**固定情境**
 
-## Input
+2030-06-17 10:00，學生在南大校園發現教室冷氣故障。
 
-```json
-{
-  "question": "宿舍冷氣壞掉了，要找誰？"
-}
-openai
-pydantic
-python-dotenv
-fastapi
-uvicorn
-
-OPENAI_API_KEY=your_api_key_here
-
-.env
-__pycache__/
-*.pyc
-.venv/
+## 輸入/輸出協定
