@@ -197,3 +197,42 @@ HTTP 502 Bad Gateway
 - 測試結果
 
 
+
+
+**BASELINE**
+
+# Baseline and Known Failure
+
+## Baseline
+
+### Baseline Name
+
+`Baseline v0.1`
+
+### Baseline Type
+
+LLM 問題理解 + 固定校園資料查詢
+
+### Description
+
+系統接收學生以自然語言描述的校園問題，由 LLM 判斷問題類型，再從固定校園資料中取得負責單位與處理流程。
+
+目前支援：
+
+- 課務
+- 學生證
+- 宿舍
+- 獎學金
+- 校園設施
+
+### System Flow
+
+```text
+學生輸入問題
+    ↓
+LLM 分析問題
+    ↓
+查詢固定校園資料
+    ↓
+回傳負責單位與處理流程
+
