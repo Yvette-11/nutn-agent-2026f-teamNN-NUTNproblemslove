@@ -80,3 +80,58 @@
     }
   }
 ]
+
+
+
+**BASELINE**
+
+`config/baseline.json`
+
+```json
+{
+  "version": "Baseline v0.1",
+  "baseline_type": "LLM 問題理解 + 固定校園資料查詢",
+  "supported_categories": [
+    "課務",
+    "學生證",
+    "宿舍",
+    "獎學金",
+    "校園設施"
+  ],
+  "known_failure": {
+    "example_input": "冷氣壞掉了怎麼辦？",
+    "problem": "缺少故障地點，可能造成錯誤分類與錯誤負責單位",
+    "future_improvement": "由 Agent 主動追問缺少的必要資訊"
+  },
+  "evidence_status": "預期 / 未完整實測"
+}
+
+
+**證據狀態**
+{
+  "version": "Baseline v0.1",
+  "status": "預期 / 未完整實測",
+  "completed": [
+    "User Story",
+    "Scope / Out of Scope",
+    "Fixed Data",
+    "I/O Contract",
+    "Acceptance Cases",
+    "Baseline",
+    "Known Failure"
+  ],
+  "pending": [
+    "實際執行程式",
+    "實際 HTTP Response",
+    "錯誤案例測試",
+    "測試結果紀錄"
+  ],
+  "required_evidence": [
+    "執行指令",
+    "實際 Input",
+    "實際 Output",
+    "HTTP Status Code",
+    "測試是否通過",
+    "失敗或錯誤紀錄"
+  ]
+}
