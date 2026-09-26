@@ -1,4 +1,4 @@
-輸入輸出
+**輸入輸出**
 [
   {
     "id": "dorm_001",
@@ -24,3 +24,59 @@
   }
 ]
 
+**三個案例**
+[
+  {
+    "id": "case_001",
+    "name": "200_success",
+    "description": "有效的學生證遺失問題",
+    "input": {
+      "question": "我的學生證不見了，要怎麼辦？"
+    },
+    "expected_http_status": 200,
+    "expected_response": {
+      "status": "success",
+      "category": "學生證",
+      "issue": "學生證遺失",
+      "department": "學生證業務相關單位",
+      "procedure": [
+        "確認學生證遺失",
+        "依校方規定進行掛失",
+        "依校方規定申請補發"
+      ]
+    }
+  },
+  {
+    "id": "case_002",
+    "name": "422_invalid_input",
+    "description": "question 為空字串",
+    "input": {
+      "question": ""
+    },
+    "expected_http_status": 422,
+    "expected_response": {
+      "status": "error",
+      "error": "INVALID_INPUT",
+      "message": "question 不可為空"
+    },
+    "expected_behavior": {
+      "call_llm": false,
+      "search_campus_data": false
+    }
+  },
+  {
+    "id": "case_003",
+    "name": "502_llm_service_error",
+    "description": "模擬 LLM API 發生錯誤",
+    "input": {
+      "question": "宿舍冷氣壞掉了，要找誰？"
+    },
+    "simulate_llm_failure": true,
+    "expected_http_status": 502,
+    "expected_response": {
+      "status": "error",
+      "error": "LLM_SERVICE_ERROR",
+      "message": "目前無法完成問題分析，請稍後再試"
+    }
+  }
+]
