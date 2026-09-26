@@ -236,3 +236,92 @@ LLM 分析問題
     ↓
 回傳負責單位與處理流程
 
+
+
+**證據狀態**
+
+# Evidence Status
+
+本文件記錄「南大智慧校園問題解決 Agent」Baseline v0.1 的驗證證據狀態。
+
+---
+
+## Current Status
+
+目前狀態：`預期 / 未完整實測`
+
+目前已完成：
+
+- User Story
+- Scope / Out of Scope
+- Fixed Data
+- I/O Contract
+- Acceptance Cases
+- Baseline
+- Known Failure
+
+目前尚未完成：
+
+- 實際執行程式
+- 實際 HTTP Response 紀錄
+- 實際錯誤案例測試
+- 測試結果截圖或紀錄
+
+---
+
+## Evidence To Be Collected
+
+完成程式實作後，需補上：
+
+- 實際執行指令
+- 實際 Input
+- 實際 Output
+- HTTP Status Code
+- 測試是否通過
+- 錯誤訊息或失敗紀錄
+
+---
+
+## Expected Evidence
+
+### Case 1：200 Success
+
+應記錄：
+
+- 輸入問題
+- 實際 Response
+- HTTP `200`
+- 是否符合 Acceptance Criteria
+
+### Case 2：422 Invalid Input
+
+應記錄：
+
+- 空白或缺少 `question` 的輸入
+- 實際 Response
+- HTTP `422`
+- 是否未呼叫 LLM
+
+### Case 3：502 LLM Service Error
+
+應記錄：
+
+- 合法問題輸入
+- 模擬 LLM 服務失敗
+- 實際 Response
+- HTTP `502`
+- 系統是否正常處理錯誤
+
+---
+
+## Evidence Status Summary
+
+| 項目 | 狀態 |
+|---|---|
+| 規格文件 | 已完成 |
+| 固定資料 | 已建立 |
+| 驗收案例 | 已定義 |
+| 程式實測 | 尚未完成 |
+| HTTP 結果 | 尚未完成 |
+| 錯誤處理實測 | 尚未完成 |
+
