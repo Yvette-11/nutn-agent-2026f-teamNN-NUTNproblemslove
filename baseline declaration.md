@@ -28,300 +28,116 @@
 2030-06-17 10:00，學生在南大校園發現教室冷氣故障。
 
 ## 輸入/輸出協定
-
-## 1. Purpose
+**Purpose**：
 
 本文件定義「南大智慧校園問題解決 Agent」的輸入與輸出格式。
 系統接收學生以自然語言描述的校園問題，判斷問題類型，並回傳對應的負責單位與處理流程。
 
----
-## 2. Input
+### 1. Input(Request Format)
 
-### Request Format
-
-系統接收 JSON 格式資料：
-
-```json
+```
 {
-  "question": "宿舍冷氣壞掉了，要找誰？"
-}
-
-**##三個案例**
-
-# Acceptance Cases
-
-本文件定義「南大智慧校園問題解決 Agent」Baseline v0.1 的三個驗收案例。
-
----
-
-## Case 1：200 Success
-
-### Purpose
-
-驗證系統在收到有效的校園問題，且固定資料中存在對應資訊時，能正確完成問題分析並回傳處理結果。
-
-### Given
-
-- 系統正常運作
-- LLM 服務可正常使用
-- 固定資料中存在「學生證遺失」相關資訊
-
-### When
-
-輸入：
-
-```json
-{
-  "question": "我的學生證不見了，要怎麼辦？"
+  "query": "我在教室上課，冷氣壞掉了，應該找誰處理？",
+  "location": "南大教室",
+  "problem_type": "設備故障",
+  "model_profile": "mock-fast",
+  "teaching_case": "normal"
 }
 ```
 
-### Then
+### 2.output(Response)
 
-系統應回傳：
+```
+can_handle: true
 
-```text
-HTTP 200 OK
+problem_category: "設備故障"
+problem_name: "冷氣故障"
+
+department: "總務相關單位"
+recommendation: "建議提交校園設備報修"
+
+reason: "根據輸入內容判斷為校園設備故障。"
+
+HTTP: 200
 ```
 
-並符合以下條件：
+## 三個驗收案例
 
-- `status` = `success`
-- `category` = `學生證`
-- `issue` 不可為空
-- `department` 不可為空
-- `procedure` 至少包含一個步驟
-- 系統不可發生 crash
+### Case 1：AC01
 
----
+Given（前置條件）
+已建立固定校園資料，包含冷氣故障對應的問題類型、負責單位及建議處理方式。
 
-## Case 2：422 Invalid Input
+When（執行動作）
+學生輸入「教室冷氣壞掉了，應該找誰處理？」，且 teaching_case=normal。
 
-### Purpose
+Then（預期結果）
+- HTTP：200
+- can_handle=true
+- problem_category="設備故障"
+- department="總務相關單位"
+- recommendation="建議提交校園設備報修"
 
-驗證系統在收到不合法輸入時，能正確拒絕處理，並回傳明確的錯誤資訊。
+### Case 2：AC02
 
-### Given
+Given（前置條件）
+Request 的其他欄位與 AC01 相同，但 query 為空字串，違反必填欄位規則。
 
-- `question` 為必要欄位
-- `question` 不可為空字串
+When（執行動作）
+學生送出 POST /assistant/campus-problem。
 
-### When
+Then（預期結果）
+- HTTP：422
+- Request validation 停止
+- 回傳欄位驗證錯誤
+- Agent 不執行問題分類或推薦
 
-輸入：
+### Case 3：AC03
 
-```json
+Given（前置條件）
+Request 格式合法，但固定校園資料中沒有該問題的對應紀錄，且 teaching_case=ungrounded。
+
+When（執行動作）
+學生輸入「教室冷氣壞掉了，應該找誰處理？」並送出 Request。
+
+Then（預期結果）
+- HTTP：502（依照課堂指定的測試情境）
+- 不產生未經資料支持的負責單位或解決方式
+- 回傳錯誤訊息，說明目前無法根據固定資料提供建議
+
+## Baseline and Known Failure
+
+### Baseline
+
+**固定輸入**
+```
 {
-  "question": ""
+  "query": "教室冷氣壞掉了，應該找誰處理？",
+  "location": "南大教室",
+  "problem_type": "設備故障",
+  "model_profile": "mock-fast",
+  "teaching_case": "normal"
 }
 ```
-
-### Then
-
-系統應回傳：
-
-```text
-HTTP 422 Unprocessable Entity
+**預期輸出**
+```
+HTTP: 200
+can_handle: true
+problem_category: 設備故障
+department: 總務相關單位
+recommendation: 建議提交校園設備報修
 ```
 
-並符合以下條件：
+### Failure
 
-- `status` = `error`
-- `error` = `INVALID_INPUT`
-- 系統不呼叫 LLM
-- 系統不進行校園資料搜尋
-- 系統不可發生 crash
+測試情境：資料依據不足
+```teaching_case = "ungrounded"```
 
----
-
-## Case 3：502 LLM Service Error
-
-### Purpose
-
-驗證 LLM 或外部服務失敗時，系統能正確處理錯誤，而不是讓整個系統中止。
-
-### Given
-
-- 使用者提供合法問題
-- 系統需要呼叫 LLM 進行問題分析
-- 模擬 LLM API timeout、連線錯誤或回傳無法解析的格式
-
-### When
-
-輸入：
-
-```json
-{
-  "question": "宿舍冷氣壞掉了，要找誰？"
-}
-```
-
-### Then
-
-系統應回傳：
-
-```text
-HTTP 502 Bad Gateway
-```
-
-並符合以下條件：
-
-- `status` = `error`
-- `error` = `LLM_SERVICE_ERROR`
-- 系統不可發生 crash
-- 系統應回傳可理解的錯誤訊息
-- 系統應記錄錯誤供後續除錯
-
----
-
-## Acceptance Summary
-
-| Case | 測試內容 | 預期 HTTP Status |
-|---|---|---:|
-| Case 1 | 有效校園問題，正常完成處理 | `200` |
-| Case 2 | `question` 缺失或為空 | `422` |
-| Case 3 | LLM / 外部服務失敗 | `502` |
-
----
+預期結果：
+- HTTP：502（課堂測試設定）
+- 不得產生沒有資料支持的負責單位或解決方式。
+- 回傳錯誤訊息，說明資料不足。
 
 ## Evidence Status
 
 目前狀態：`預期 / 未完整實測`
-
-待程式完成並實際執行後，再補上：
-
-- 實際 Request
-- 實際 Response
-- 執行指令
-- HTTP Status
-- 測試結果
-
-
-
-
-**BASELINE**
-
-# Baseline and Known Failure
-
-## Baseline
-
-### Baseline Name
-
-`Baseline v0.1`
-
-### Baseline Type
-
-LLM 問題理解 + 固定校園資料查詢
-
-### Description
-
-系統接收學生以自然語言描述的校園問題，由 LLM 判斷問題類型，再從固定校園資料中取得負責單位與處理流程。
-
-目前支援：
-
-- 課務
-- 學生證
-- 宿舍
-- 獎學金
-- 校園設施
-
-### System Flow
-
-```text
-學生輸入問題
-    ↓
-LLM 分析問題
-    ↓
-查詢固定校園資料
-    ↓
-回傳負責單位與處理流程
-
-
-
-**證據狀態**
-
-# Evidence Status
-
-本文件記錄「南大智慧校園問題解決 Agent」Baseline v0.1 的驗證證據狀態。
-
----
-
-## Current Status
-
-目前狀態：`預期 / 未完整實測`
-
-目前已完成：
-
-- User Story
-- Scope / Out of Scope
-- Fixed Data
-- I/O Contract
-- Acceptance Cases
-- Baseline
-- Known Failure
-
-目前尚未完成：
-
-- 實際執行程式
-- 實際 HTTP Response 紀錄
-- 實際錯誤案例測試
-- 測試結果截圖或紀錄
-
----
-
-## Evidence To Be Collected
-
-完成程式實作後，需補上：
-
-- 實際執行指令
-- 實際 Input
-- 實際 Output
-- HTTP Status Code
-- 測試是否通過
-- 錯誤訊息或失敗紀錄
-
----
-
-## Expected Evidence
-
-### Case 1：200 Success
-
-應記錄：
-
-- 輸入問題
-- 實際 Response
-- HTTP `200`
-- 是否符合 Acceptance Criteria
-
-### Case 2：422 Invalid Input
-
-應記錄：
-
-- 空白或缺少 `question` 的輸入
-- 實際 Response
-- HTTP `422`
-- 是否未呼叫 LLM
-
-### Case 3：502 LLM Service Error
-
-應記錄：
-
-- 合法問題輸入
-- 模擬 LLM 服務失敗
-- 實際 Response
-- HTTP `502`
-- 系統是否正常處理錯誤
-
----
-
-## Evidence Status Summary
-
-| 項目 | 狀態 |
-|---|---|
-| 規格文件 | 已完成 |
-| 固定資料 | 已建立 |
-| 驗收案例 | 已定義 |
-| 程式實測 | 尚未完成 |
-| HTTP 結果 | 尚未完成 |
-| 錯誤處理實測 | 尚未完成 |
-
