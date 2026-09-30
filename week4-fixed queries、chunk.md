@@ -1,15 +1,14 @@
-** proposal
-# Retrieval Trigger Cases
+## proposal
+user:
 
-本文件定義「南大智慧校園問題解決 Agent」Baseline v0.1 的三種 Retrieval Trigger 情境。
 
-系統應先判斷問題需要哪一種 evidence，再決定是否執行 retrieval。
 
----
+## fixed queries
 
-## Case 1：Static Knowledge Retrieval
 
-### Query
+### Case 1：Static Knowledge Retrieval
+
+** Query**
 
 ```text
 宿舍冷氣壞掉了，要怎麼報修？
@@ -114,14 +113,6 @@ LIVE_DATA_REQUIRED
 
 ---
 
-## Evidence Status
 
-目前狀態：`預期 / 未完整實測`
 
-待系統完成後，再補上：
-
-- 實際 route
-- retrieval 是否執行
-- trace
-- failure code
-- 實際 output
+##chunk
