@@ -8,7 +8,7 @@ user:
 
 ### Case 1：Static Knowledge Retrieval
 
-** Query**
+**Query**
 
 ```text
 宿舍冷氣壞掉了，要怎麼報修？
@@ -30,7 +30,7 @@ static_knowledge_corpus
 
 ### Case 2：No Retrieval
 
-** Query**
+**Query**
 
 ```text
 請把我提供的冷氣報修公告整理得更簡短。
@@ -54,7 +54,7 @@ no_retrieval
 
 ### Case 3：Live Data Required
 
-** Query**
+**Query**
 
 ```text
 現在冷氣報修的承辦人員有值班嗎？
