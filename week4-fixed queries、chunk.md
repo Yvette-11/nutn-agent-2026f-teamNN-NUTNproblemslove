@@ -80,3 +80,47 @@ live_data_source
 | Case 3 | 即時狀態 | `live_data_source` | No static retrieval |
 
 ## chunk
+**Chunk 1**
+
+chunk_id: NUTN-DORM-REPAIR-001
+
+title: 國立臺南大學修繕系統
+
+source_id: NUTN-DORM-REPAIR
+
+text:
+國立臺南大學學生宿舍「宿舍修繕/網路」頁面提供「國立臺南大學修繕系統」入口，學生可透過該系統進行相關設備修繕申請。
+
+supported_aspects:
+- repair_system
+- repair_method
+
+**Chunk 2**
+
+chunk_id: NUTN-DORM-REPAIR-002
+
+title: 空調設備相關修繕類別
+
+source_id: NUTN-DORM-REPAIR
+
+text:
+國立臺南大學修繕系統提供「土木、空調或水電／其他維修」申告類別，可用於處理空調相關設備的修繕申請。
+
+supported_aspects:
+- repair_category
+- air_conditioner_related
+
+**Chunk 3**
+
+chunk_id: NUTN-DORM-REPAIR-003
+
+title: 修繕申請所需資訊
+
+source_id: NUTN-DORM-REPAIR
+
+text:
+進行國立臺南大學修繕申請時，系統要求填寫相關申請資訊，包括申請類別、單位、所在建築及故障情況，以提供修繕所需的問題與位置資訊。
+
+supported_aspects:
+- required_information
+- repair_process
