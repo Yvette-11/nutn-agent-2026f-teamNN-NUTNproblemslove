@@ -1,0 +1,53 @@
+{
+  "project": "NUTN Smart Campus Problem-Solving Agent",
+  "index_version": "week03-v1",
+  "cases": [
+    {
+      "case_id": "case-1",
+      "query": "宿舍冷氣壞掉了，要怎麼報修？",
+      "route": "static_knowledge_corpus",
+      "retrieval_required": true,
+      "top_k": [
+        {
+          "rank": 1,
+          "chunk_id": "待填入實際結果",
+          "score": "待填入實際結果"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "待填入實際結果",
+          "score": "待填入實際結果"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "待填入實際結果",
+          "score": "待填入實際結果"
+        }
+      ],
+      "gold_ids": [
+        "NUTN-DORM-REPAIR-001",
+        "NUTN-DORM-REPAIR-002",
+        "NUTN-DORM-REPAIR-003"
+      ],
+      "should_refuse": false
+    },
+    {
+      "case_id": "case-2",
+      "query": "請把我提供的冷氣報修公告整理得更簡短。",
+      "route": "no_retrieval",
+      "retrieval_required": false,
+      "top_k": [],
+      "gold_ids": [],
+      "should_refuse": false
+    },
+    {
+      "case_id": "case-3",
+      "query": "現在冷氣報修的承辦人員有值班嗎？",
+      "route": "live_data_source",
+      "retrieval_required": false,
+      "top_k": [],
+      "gold_ids": [],
+      "should_refuse": false
+    }
+  ]
+}
