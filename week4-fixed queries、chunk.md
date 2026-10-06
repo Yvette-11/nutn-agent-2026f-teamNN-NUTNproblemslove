@@ -80,7 +80,7 @@ live_data_source
 | Case 3 | 即時狀態 | `live_data_source` | No static retrieval |
 
 ## chunk
-**Chunk 1**
+### Chunk 1
 
 chunk_id: NUTN-DORM-REPAIR-001
 
@@ -95,7 +95,7 @@ supported_aspects:
 - repair_system
 - repair_method
 
-**Chunk 2**
+### Chunk 2
 
 chunk_id: NUTN-DORM-REPAIR-002
 
@@ -110,7 +110,7 @@ supported_aspects:
 - repair_category
 - air_conditioner_related
 
-**Chunk 3**
+### Chunk 3
 
 chunk_id: NUTN-DORM-REPAIR-003
 
