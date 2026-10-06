@@ -1,0 +1,36 @@
+{
+  "case_id": "case-1",
+  "query": "宿舍冷氣壞掉了，要怎麼報修？",
+
+  "selected_evidence": [
+    "NUTN-DORM-REPAIR-001",
+    "NUTN-DORM-REPAIR-002",
+    "NUTN-DORM-REPAIR-003"
+  ],
+
+  "same_selected_evidence": true,
+  "same_citations": true,
+
+  "generators": {
+    "offline": {
+      "provider": "offline",
+      "llm_actually_called": false,
+      "answer": "待執行"
+    },
+
+    "gemini_fixture": {
+      "provider": "gemini_fixture",
+      "llm_actually_called": false,
+      "answer": "待執行"
+    },
+
+    "gemini_live": {
+      "provider": "gemini",
+      "llm_actually_called": true,
+      "answer": "待執行"
+    }
+  },
+
+  "fact_coverage": "待測試",
+  "unsupported_claims": []
+}
