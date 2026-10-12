@@ -1,0 +1,12 @@
+{
+  "run_id": "9769daeb99284d848d5f230e1d768560",
+  "mode": "GEMINI_LIVE",
+  "status": "LIVE_FAIL",
+  "model": "gemini-3.8-flash",
+  "input": {
+    "problem_description": "宿舍冷氣壞掉了",
+    "location": "學生宿舍"
+  },
+  "error": "Bad Request",
+  "write_executed": false
+}
