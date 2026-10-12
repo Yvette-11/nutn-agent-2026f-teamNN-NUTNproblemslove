@@ -73,5 +73,5 @@ Gemini Live 會透過 HTTPS 傳送你輸入的問題和地點給 Google Gemini A
 
 ### SHA
 
-fcbaf2d705aa494de512981234437bd95f61e674
+5aa6e99f95300a6504924bdca253f6a8bc216bb0
 
