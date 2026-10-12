@@ -71,4 +71,7 @@ Agent 會協助判斷問題類型、整理回報需要的資訊、建議可能�
 
 Gemini Live 會透過 HTTPS 傳送你輸入的問題和地點給 Google Gemini API，並可能產生 API 用量。避免輸入房號、姓名或其他不必要的個人資訊。
 
+### SHA
+
+fcbaf2d705aa494de512981234437bd95f61e674
 
