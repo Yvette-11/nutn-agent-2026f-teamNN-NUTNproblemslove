@@ -42,3 +42,33 @@ Agent 會協助判斷問題類型、整理回報需要的資訊、建議可能�
 | 李怡萱 | S11182001 | Yvette-11 | Agent 流程設計、Prompt 設計、問題分類、系統功能整合 |
 
 | 張傑 | S11182016 | jamisonchang | 蒐集南大校園資料、整理負責單位與解決方式、介面設計、測試 |
+
+# 10/6南大修繕 Agent｜本機示範版
+
+這是一個可在 Windows 本機操作的 Python CLI 範例，包含：
+
+- MCP stdio server：提供 `tools/list`、`tools/call`、`get_repair_information`、`create_repair_draft`。
+- 修繕查詢：目前只支援學生宿舍空調，找不到 evidence 或輸入不支援時會停止。
+- 本機草稿：先顯示內容，只有輸入「確認建立」才呼叫寫入工具；建立後會讀回核對。
+- Gemini Live：可選擇透過 Gemini API 做真實 function calling；不提供寫入工具給模型。
+- 重現失敗：選單 4 會送出空白問題描述，留下 MCP validation failure 紀錄。
+
+> `knowledge.json` 已整理專題 GitHub 中 `week4-fixed queries、chunk.md` 的三段固定 chunks，查詢結果會回傳 chunk 原文、標題、source_id 與 chunk_id。提交前請確認該 GitHub 文件仍是組員認可的 Week 3 evidence 版本。
+
+## 不用 API key 就能先操作
+
+- 輸入 `5`：列出 MCP tools，存一筆 `MCP_TOOLS_LIST` 紀錄。
+- 輸入 `1`：查詢；可試「宿舍冷氣壞掉了」和「學生宿舍」。
+- 輸入 `2`：在成功查詢後建立本機草稿。輸入完整的「確認建立」才會寫入。
+- 輸入 `4`：重現空白問題描述的失敗案例。這是本機 MCP validation failure，不會冒充 Gemini Live failure。
+- 輸入 `0`：離開。
+
+每次操作的 JSON 紀錄會寫在 `runs/`。草稿放在 `drafts/`。請用虛構樓棟／測試資料做課堂展示；不要把個資、API key 或 `.env` 上傳。
+
+## 設定 Gemini Live
+
+程式只把 `get_repair_information` 唯讀函式提供給 Gemini。模型回傳 function call 後，Host 透過本機 MCP server 執行，將結果回傳 Gemini，再顯示最終摘要。寫入工具不提供給模型。成功／失敗紀錄會分別標記 `LIVE_PASS`／`LIVE_FAIL`；沒有 key 時不會假裝已做 live 測試。
+
+Gemini Live 會透過 HTTPS 傳送你輸入的問題和地點給 Google Gemini API，並可能產生 API 用量。避免輸入房號、姓名或其他不必要的個人資訊。
+
+
