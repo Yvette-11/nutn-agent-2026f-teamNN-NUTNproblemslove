@@ -1,0 +1,23 @@
+{
+  "run_id": "3a09851c0e7547e7be01ac65052769ad",
+  "mode": "MCP_WRITE_DEMO",
+  "status": "WRITE_AND_READBACK_PASS",
+  "accepted": true,
+  "executed": true,
+  "proposal": {
+    "problem_description": "宿舍冷氣壞掉了",
+    "location": "學生宿舍",
+    "repair_category": "土木、空調或水電／其他維修",
+    "unit": "A棟",
+    "building": "A棟"
+  },
+  "request_id": "REQ-REPAIR-76C6D25E57",
+  "tool_result": {
+    "status": "draft_created",
+    "executed": true,
+    "replayed": false,
+    "draft_id": "REPAIR-DRAFT-F65BD7C6",
+    "file": "drafts/REPAIR-DRAFT-F65BD7C6.md"
+  },
+  "readback_verified": true
+}

@@ -1,0 +1,23 @@
+{
+  "run_id": "1d0fadbf0cf849279a7b6cd1a912cda7",
+  "mode": "REPRODUCIBLE_LOCAL_FAILURE",
+  "status": "EXPECTED_TOOL_ERROR",
+  "input": {
+    "problem_description": "",
+    "location": "學生宿舍"
+  },
+  "mcp_tool_result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"error\": \"INVALID_INPUT\",\n  \"message\": \"INVALID_INPUT: problem_description must be a non-empty string\"\n}"
+      }
+    ],
+    "structuredContent": {
+      "error": "INVALID_INPUT",
+      "message": "INVALID_INPUT: problem_description must be a non-empty string"
+    },
+    "isError": true
+  },
+  "write_executed": false
+}

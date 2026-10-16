@@ -1,0 +1,12 @@
+{
+  "run_id": "9797ee59bd0b460f8b0d8191719309f9",
+  "mode": "GEMINI_LIVE",
+  "status": "LIVE_FAIL",
+  "model": "gemini-3.8-flash",
+  "input": {
+    "problem_description": "宿舍冷氣壞掉了",
+    "location": "學生宿舍"
+  },
+  "error": "The read operation timed out",
+  "write_executed": false
+}
