@@ -14,7 +14,7 @@ Evaluate LangChain `create_agent` as a replacement for the hand-written Gemini f
 
 ## Comparison evidence
 
-The committed baseline revision is `5bdcb357e4b1cdfb4e5498461ffadf35251e4b35`. Both paths use the same local MCP server, evidence, read/write tools, CLI cases, and write-confirmation rules. The candidate changes only Gemini orchestration. The candidate is currently an uncommitted working tree, so it has no candidate commit SHA yet.
+The committed baseline revision is `5bdcb357e4b1cdfb4e5498461ffadf35251e4b35`. Both paths use the same local MCP server, evidence, read/write tools, CLI cases, and write-confirmation rules. The candidate changes only Gemini orchestration. The LangChain candidate has been committed and pushed on branch `week05-framework-refactor`. Latest branch commit SHA: [b5d57ae93816c80a77c73bad29378ae43fc345ed].
 
 | Case | Baseline | LangChain candidate | Comparison |
 |---|---|---|---|
