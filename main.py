@@ -10,8 +10,9 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from langchain.agents import create_agent
+from langchain.tools import tool
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 
 ROOT = Path(__file__).resolve().parent
@@ -215,115 +216,141 @@ def create_draft(client: MCPClient, last_read: dict[str, Any] | None) -> None:
         })
 
 
-def gemini_request(api_key: str, model: str, contents: list[dict[str, Any]], declarations: list[dict[str, Any]]) -> dict[str, Any]:
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    # Keep Gemini 3's recommended default temperature instead of forcing 0.
-    body: dict[str, Any] = {"contents": contents}
-    if declarations:
-        body["tools"] = [{"functionDeclarations": declarations}]
-    request = Request(
-        url,
-        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
-        method="POST",
-    )
-    # Gemini can take longer when returning a function call and a final answer;
-    # allow up to two minutes before recording a LIVE_FAIL timeout.
-    with urlopen(request, timeout=120) as response:
-        return json.loads(response.read().decode("utf-8"))
-
-
 def gemini_live_read(client: MCPClient) -> dict[str, Any] | None:
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip()
     if not api_key:
         print("找不到 GEMINI_API_KEY。先用一般查詢／草稿功能；要做 Live 測試時，依 README 建立 .env。")
         return None
+
     problem = input("請用一句話描述問題（此模式目前支援宿舍空調）：").strip()
     location = input("問題地點：").strip()
     run_id = uuid.uuid4().hex
     user_prompt = (
-        "你是南大校園修繕助理。只處理學生宿舍空調問題。必須呼叫 get_repair_information 取得 evidence；"
-        "只根據工具結果回答，不得呼叫任何寫入工具、不得聲稱已建立報修。若問題不支援或輸入不完整，直接說明。\n"
-        f"問題：{problem}\n地點：{location}"
+        "只處理學生宿舍空調問題。必須呼叫 get_repair_information 取得 evidence；"
+        "只根據工具結果回答，不得呼叫任何寫入工具、不得聲稱已建立報修。"
+        "若問題不支援或輸入不完整，直接說明。" + "\n"
+        + f"問題：{problem}" + "\n" + f"地點：{location}"
     )
-    declaration = {
-        "name": "get_repair_information",
-        "description": "唯讀查詢固定 evidence 中的學生宿舍空調修繕系統、類別和必填資訊。不得猜測。",
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {
-                "problem_description": {"type": "STRING", "description": "故障描述"},
-                "location": {"type": "STRING", "description": "故障位置"},
+
+    tool_invocations: list[dict[str, Any]] = []
+    tool_results: list[dict[str, Any]] = []
+    messages: list[Any] = []
+
+    @tool
+    def get_repair_information(problem_description: str, location: str) -> str:
+        """唯讀查詢固定 evidence 中的學生宿舍空調修繕系統、類別和必填資訊；不得猜測。"""
+        invocation = {
+            "name": "get_repair_information",
+            "args": {
+                "problem_description": problem_description,
+                "location": location,
             },
-            "required": ["problem_description", "location"],
-        },
-    }
-    try:
-        first = gemini_request(api_key, model, [{"role": "user", "parts": [{"text": user_prompt}]}], [declaration])
-        candidate = first["candidates"][0]
-        model_content = candidate["content"]
-        parts = model_content.get("parts", [])
-        calls = [part["functionCall"] for part in parts if "functionCall" in part]
-        if len(calls) != 1 or calls[0].get("name") != "get_repair_information":
-            text = "\n".join(part.get("text", "") for part in parts if part.get("text"))
-            raise RuntimeError(f"LIVE_FAIL: 預期一個 get_repair_information functionCall，實際為 {text or calls}")
-        function_call = calls[0]
-        args = function_call.get("args", {})
-        tool_raw = client.call_tool("get_repair_information", args)
-        tool_value = unpack_tool_result(tool_raw)
-        function_response: dict[str, Any] = {
-            "name": function_call["name"],
-            "response": tool_value,
         }
-        if function_call.get("id"):
-            function_response["id"] = function_call["id"]
-        followup_contents = [
-            {"role": "user", "parts": [{"text": user_prompt}]},
-            model_content,
-            {"role": "user", "parts": [{"functionResponse": function_response}]},
+        tool_invocations.append(invocation)
+        if len(tool_invocations) > 1:
+            raise RuntimeError("LIVE_FAIL: LangChain agent attempted more than one tool call")
+        raw = client.call_tool("get_repair_information", invocation["args"])
+        value = unpack_tool_result(raw)
+        tool_results.append(value)
+        return json.dumps(value, ensure_ascii=False)
+
+    try:
+        chat_model = ChatGoogleGenerativeAI(
+            model=model,
+            api_key=api_key,
+            temperature=1.0,
+            retries=0,
+            request_timeout=120,
+        )
+        agent = create_agent(
+            model=chat_model,
+            tools=[get_repair_information],
+            system_prompt=(
+                "你是南大校園修繕助理。只處理學生宿舍空調問題。"
+                "每次只呼叫一次 get_repair_information 取得 evidence；"
+                "只根據工具結果回答，不可補充工具結果未列出的具體要求或事實。"
+                "例如 evidence 只寫『所在建築』時，不可自行增加棟別、寢室或房號要求。"
+                "不可呼叫寫入工具或聲稱已建立報修。"
+                "若工具回傳錯誤，說明無法根據固定資料提供建議。"
+            ),
+        )
+        result = agent.invoke(
+            {"messages": [{"role": "user", "content": user_prompt}]},
+            config={"recursion_limit": 6},
+        )
+        messages = result.get("messages", [])
+        model_tool_calls = [
+            call
+            for message in messages
+            for call in (getattr(message, "tool_calls", None) or [])
         ]
-        second = gemini_request(api_key, model, followup_contents, [])
-        final_parts = second["candidates"][0]["content"].get("parts", [])
-        final_text = "\n".join(part.get("text", "") for part in final_parts if part.get("text")).strip()
+        if len(tool_invocations) != 1 or len(model_tool_calls) != 1:
+            raise RuntimeError(
+                "LIVE_FAIL: 預期一次 get_repair_information 呼叫；"
+                f"實際 MCP 呼叫次數={len(tool_invocations)}，模型 tool call 次數={len(model_tool_calls)}"
+            )
+        if model_tool_calls[0].get("name") != "get_repair_information":
+            raise RuntimeError("LIVE_FAIL: agent 呼叫了非預期工具")
+        if len(tool_results) != 1:
+            raise RuntimeError("LIVE_FAIL: MCP 工具沒有回傳可用 evidence")
+
+        final_message = next(
+            (message for message in reversed(messages) if getattr(message, "type", None) == "ai"),
+            None,
+        )
+        if final_message is None:
+            raise RuntimeError("LIVE_FAIL: agent 沒有回傳最終 AI 訊息")
+        content = final_message.content
+        if isinstance(content, str):
+            final_text = content.strip()
+        elif isinstance(content, list):
+            final_text = "\n".join(
+                block.get("text", "")
+                for block in content
+                if isinstance(block, dict) and block.get("type") == "text"
+            ).strip()
+        else:
+            final_text = str(content).strip()
         if not final_text:
-            raise RuntimeError("LIVE_FAIL: functionResponse 後沒有取得 Gemini 文字摘要")
-        print("\nGemini 最終回答：\n" + final_text)
-        print(f"\nLIVE_PASS | model={model} | run_id={run_id}")
+            raise RuntimeError("LIVE_FAIL: tool result 後沒有取得 Gemini 文字摘要")
+
+        tool_value = tool_results[0]
+        function_call = model_tool_calls[0]
+        print("\n" + "Gemini 最終回答：" + "\n" + final_text)
+        print("\n" + f"LIVE_PASS | framework=LangChain create_agent | model={model} | run_id={run_id}")
         value = {
             "run_id": run_id,
             "mode": "GEMINI_LIVE",
             "status": "LIVE_PASS",
+            "framework": "langchain.create_agent",
             "model": model,
             "input": {"problem_description": problem, "location": location},
             "function_call": function_call,
             "mcp_tool_result": tool_value,
-            "function_response_sent": True,
+            "tool_response_returned_to_agent": True,
             "final_answer": final_text,
-            "usage_metadata": second.get("usageMetadata", "not returned"),
+            "usage_metadata": getattr(final_message, "usage_metadata", None) or "not returned",
+            "write_executed": False,
         }
         save_run(value)
         return {**tool_value, "problem_description": problem, "location": location}
-    except (HTTPError, URLError, TimeoutError, KeyError, IndexError, RuntimeError, json.JSONDecodeError) as exc:
-        reason = getattr(exc, "reason", None) or str(exc)
-        if isinstance(exc, HTTPError):
-            try:
-                error_payload = json.loads(exc.read().decode("utf-8"))
-                reason = error_payload.get("error", {}).get("message") or reason
-            except (UnicodeDecodeError, json.JSONDecodeError, OSError):
-                pass
-        print(f"\nLIVE_FAIL | {reason}\n本輪停止；沒有自動重送。")
+    except Exception as exc:
+        reason = str(exc)
+        print("\n" + f"LIVE_FAIL | {reason}" + "\n" + "本輪停止；沒有自動重送。")
         save_run({
             "run_id": run_id,
             "mode": "GEMINI_LIVE",
             "status": "LIVE_FAIL",
+            "framework": "langchain.create_agent",
             "model": model,
             "input": {"problem_description": problem, "location": location},
+            "tool_calls": tool_invocations,
+            "mcp_tool_results": tool_results,
             "error": reason,
             "write_executed": False,
         })
         return None
-
 
 def main() -> None:
     # Keep the interactive host and MCP child's JSON stream consistent on

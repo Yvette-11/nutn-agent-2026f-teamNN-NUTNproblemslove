@@ -1,0 +1,15 @@
+{
+  "run_id": "de24df7ed24f4d05946bba3cc70fd8f5",
+  "mode": "GEMINI_LIVE",
+  "status": "LIVE_FAIL",
+  "framework": "langchain.create_agent",
+  "model": "gemini-3.8-flash",
+  "input": {
+    "problem_description": "宿舍冷氣壞掉了",
+    "location": "學生宿舍"
+  },
+  "tool_calls": [],
+  "mcp_tool_results": [],
+  "error": "504 DEADLINE_EXCEEDED. {'error': {'code': 504, 'message': 'Deadline expired before operation could complete.', 'status': 'DEADLINE_EXCEEDED'}}",
+  "write_executed": false
+}

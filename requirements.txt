@@ -1,0 +1,2 @@
+langchain==1.4.6
+langchain-google-genai==4.4.2

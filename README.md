@@ -45,6 +45,20 @@ Agent 會協助判斷問題類型、整理回報需要的資訊、建議可能�
 
 # 10/6南大修繕 Agent｜本機示範版
 
+## Week 05：LangChain orchestration 候選版
+
+目前 `week05-framework-refactor` 分支把 `gemini_live_read()` 中手動處理 Gemini function calling 的流程，改為 LangChain `create_agent`。MCP server/client、固定 evidence、CLI、本地草稿與確認流程仍沿用原本實作。Agent 只取得唯讀的 `get_repair_information`，不會取得寫入工具。
+
+在專案資料夾的終端機安裝鎖定版本：
+
+```powershell
+py -3.11 -m pip install -r requirements.txt
+```
+
+再依下方 Gemini Live 設定提供 `.env`，用 `start.bat` 啟動。Gemini Live 會產生 API 用量；候選版 AC01 尚未完成 Live 實測前，不要將它標成通過。測試結果與採用決策請看 [`baseline declaration.md`](baseline%20declaration.md) 和 [`week05-refactor-decision.md`](week05-refactor-decision.md)。
+
+此分支的變更尚未提交。原始基準仍保留在 `main`；要回到基準時，可在 VS Code 左下角分支名稱選擇 `main`。`.env` 不得上傳。
+
 這是一個可在 Windows 本機操作的 Python CLI 範例，包含：
 
 - MCP stdio server：提供 `tools/list`、`tools/call`、`get_repair_information`、`create_repair_draft`。

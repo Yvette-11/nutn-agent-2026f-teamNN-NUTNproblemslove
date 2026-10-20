@@ -1,0 +1,7 @@
+.env
+.venv/
+runs/
+drafts/
+__pycache__/
+*.py[cod]
+baseline declaration_backup.md

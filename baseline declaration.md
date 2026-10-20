@@ -1,143 +1,42 @@
-## User Story
+# Week 05 CLI Baseline and Test Results
 
-身為國立臺南大學學生，
-當我遇到校園行政、生活或設施相關問題時，
-我希望可以直接描述問題，
-讓系統協助判斷問題類型、負責單位與處理方式，
-降低自行搜尋校方網站的成本。
+## Scope
 
-## 範圍與固定資料
+This repository currently runs an interactive local CLI, not the HTTP `POST /assistant/campus-problem` API described in an earlier project draft. The implemented fixed-data query supports student dormitory air-conditioning repair. Gemini Live is read-only and does not receive the draft-writing tool.
 
-**In Scope**
+## Fixed test cases
 
-- 冷氣故障 → 設備問題 → 總務相關單位 → 設備報修
-- 飲水機故障 → 設備問題 → 總務相關單位 → 設備維修
-- 教室燈光故障 → 設備問題 → 總務相關單位 → 設備維修
-- 校園環境髒亂 → 環境問題 → 清潔相關單位 → 環境回報
+| Case | Input/action | Expected result |
+|---|---|---|
+| AC01 | Select `3`; problem `宿舍冷氣壞掉了`; location `學生宿舍` | Gemini calls `get_repair_information` once, grounds the answer in returned evidence, reports `LIVE_PASS`, and performs no write. |
+| AC02 | Select `4` to send an empty problem description | MCP returns `INVALID_INPUT`; write tool is not called and no draft is created. This is a local validation failure, not a Gemini Live failure. |
+| AC03 | Complete a read, select `2`, then decline the proposal | The app says the action was cancelled; write tool is not called and no draft is created. |
 
-**Out of Scope**
+## Baseline results (before LangChain refactor)
 
-- 不即時爬取校方網站
-- 不登入校務系統
-- 不自動送出申請
-- 不處理真實校園問題
-- 不使用學生個人資料
+Baseline revision: `5bdcb357e4b1cdfb4e5498461ffadf35251e4b35` (branch `week05-framework-refactor`, the committed state before the current uncommitted refactor).
 
-**固定情境**
+| Case | Result | Record |
+|---|---|---|
+| AC01 | Historical success: `LIVE_PASS`; an additional run failed because the provider reported high demand. Both outcomes are retained; the failure does not erase the earlier success. | Success `979fe9e1340646f79469819effa6b63d` (`evidence/gemini live_pass.json`); high-demand failure `a6319d0239df49268b653c87babfa5be` (`runs/`). Other historical failures: timeout `9797ee59bd0b460f8b0d8191719309f9`, bad request `9769daeb99284d848d5f230e1d768560` (both in `evidence/`). |
+| AC02 | PASS: validation returned `INVALID_INPUT`; no write. | `0d09305d577e4ead9b2c44a3320fbf03` (`runs/`). |
+| AC03 | PASS: user declined; no write and no draft. | `1401fb55939e4ab3a9f3a60ec392162d` (`runs/`). |
 
-2030-06-17 10:00，學生在南大校園發現教室冷氣故障。
+## LangChain candidate results (current uncommitted working tree)
 
-## 輸入/輸出協定
-**Purpose**：
+| Case | Result | Record |
+|---|---|---|
+| AC01 | 第一次 LIVE_PASS，但回答加入 evidence 未支持的房號資訊，grounding 未通過；第二次 LIVE_FAIL，錯誤為 504 DEADLINE_EXCEEDED，沒有產生回答。 | 第一次 run_id：e3cbb967d93a492c8fd66c386948f6d6；第二次 run_id：de24df7ed24f4d05946bba3cc70fd8f5。結論：尚未驗證通過。 |
+| AC02 | PASS: same validation failure behavior, no write. | `278fac3dba724daf9f06062e7051e707` (`runs/`). |
+| AC03 | PASS: user declined; no write and no draft. | `c64ac6f123584604b6fe8a6aec6c7e76` (`runs/`). |
 
-本文件定義「南大智慧校園問題解決 Agent」的輸入與輸出格式。
-系統接收學生以自然語言描述的校園問題，判斷問題類型，並回傳對應的負責單位與處理流程。
+The earlier baseline Live failure `a6319d0239df49268b653c87babfa5be` was caused by temporary provider high demand. The first candidate Live run confirmed the framework tool loop works but failed grounding review because the answer added an unsupported room-number requirement. A second candidate run used the corrected location after the prompt change, but the provider returned `504 DEADLINE_EXCEEDED`; no answer was available for grounding review. The prompt change therefore remains unvalidated. Do not repeatedly retry the provider failure or relabel it as a successful run.
 
-### 1. Input(Request Format)
+## Evidence to preserve for each run
 
-```
-{
-  "query": "我在教室上課，冷氣壞掉了，應該找誰處理？",
-  "location": "南大教室",
-  "problem_type": "設備故障",
-  "model_profile": "mock-fast",
-  "teaching_case": "normal"
-}
-```
+- commit SHA (for this uncommitted candidate, label it as working tree and record the SHA only after committing)
+- case ID, exact input/action, framework path, run ID, actual status
+- model and tool calls for Live runs; returned source/chunk IDs when present
+- whether any write ran and whether a draft file was created
 
-### 2.output(Response)
-
-```
-can_handle: true
-
-problem_category: "設備故障"
-problem_name: "冷氣故障"
-
-department: "總務相關單位"
-recommendation: "建議提交校園設備報修"
-
-reason: "根據輸入內容判斷為校園設備故障。"
-
-HTTP: 200
-```
-
-## 三個驗收案例
-
-### Case 1：AC01
-
-Given（前置條件）
-已建立固定校園資料，包含冷氣故障對應的問題類型、負責單位及建議處理方式。
-
-When（執行動作）
-學生輸入「教室冷氣壞掉了，應該找誰處理？」，且 teaching_case=normal。
-
-Then（預期結果）
-- HTTP：200
-- can_handle=true
-- problem_category="設備故障"
-- department="總務相關單位"
-- recommendation="建議提交校園設備報修"
-
-### Case 2：AC02
-
-Given（前置條件）
-Request 的其他欄位與 AC01 相同，但 query 為空字串，違反必填欄位規則。
-
-When（執行動作）
-學生送出 POST /assistant/campus-problem。
-
-Then（預期結果）
-- HTTP：422
-- Request validation 停止
-- 回傳欄位驗證錯誤
-- Agent 不執行問題分類或推薦
-
-### Case 3：AC03
-
-Given（前置條件）
-Request 格式合法，但固定校園資料中沒有該問題的對應紀錄，且 teaching_case=ungrounded。
-
-When（執行動作）
-學生輸入「教室冷氣壞掉了，應該找誰處理？」並送出 Request。
-
-Then（預期結果）
-- HTTP：502（依照課堂指定的測試情境）
-- 不產生未經資料支持的負責單位或解決方式
-- 回傳錯誤訊息，說明目前無法根據固定資料提供建議
-
-## Baseline and Known Failure
-
-### Baseline
-
-**固定輸入**
-```
-{
-  "query": "教室冷氣壞掉了，應該找誰處理？",
-  "location": "南大教室",
-  "problem_type": "設備故障",
-  "model_profile": "mock-fast",
-  "teaching_case": "normal"
-}
-```
-**預期輸出**
-```
-HTTP: 200
-can_handle: true
-problem_category: 設備故障
-department: 總務相關單位
-recommendation: 建議提交校園設備報修
-```
-
-### Failure
-
-測試情境：資料依據不足
-```teaching_case = "ungrounded"```
-
-預期結果：
-- HTTP：502（課堂測試設定）
-- 不得產生沒有資料支持的負責單位或解決方式。
-- 回傳錯誤訊息，說明資料不足。
-
-## Evidence Status
-
-目前狀態：`預期 / 未完整實測`
+`runs/` contains local runtime records and is ignored by Git. Copy only sanitized records needed for submission into `evidence/`; never include `.env` or API keys.
