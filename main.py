@@ -313,7 +313,17 @@ def read_info(client: MCPClient) -> dict[str, Any] | None:
 
 def create_draft(client: MCPClient, last_read: dict[str, Any] | None) -> None:
     if not last_read:
-        print("請先在本次程式執行中成功查詢修繕資訊，再建立草稿。")
+        run_id = uuid.uuid4().hex
+        message = "請先在本次程式執行中成功查詢修繕資訊，再建立草稿。"
+        print(message)
+        save_run({
+            "run_id": run_id,
+            "mode": "SESSION_MEMORY_GUARD",
+            "status": "BLOCKED_NO_CURRENT_READ",
+            "action": "create_repair_draft",
+            "stop_reason": "no_current_session_read",
+            "write_executed": False,
+        })
         return
     problem = input(f"問題描述 [{last_read['problem_description']}]：").strip() or last_read["problem_description"]
     location = input(f"地點 [{last_read['location']}]：").strip() or last_read["location"]
@@ -370,6 +380,91 @@ def create_draft(client: MCPClient, last_read: dict[str, Any] | None) -> None:
             "request_id": proposal["request_id"],
         })
 
+def run_idempotency_test(
+    client: MCPClient,
+    last_read: dict[str, Any] | None,
+) -> None:
+    if not last_read:
+        print("請先成功查詢修繕資訊，再執行同 ID 重送測試。")
+        return
+
+    proposal = {
+        "problem_description": last_read["problem_description"],
+        "location": last_read["location"],
+        "repair_category": last_read["repair_category"],
+        "unit": "學生",
+        "building": "測試用棟別",
+        "request_id": f"REQ-WEEK07-IDEMPOTENCY-{uuid.uuid4().hex[:8].upper()}",
+    }
+
+    print("\nW02 同 ID 重送測試預覽（只會建立一份本機草稿）：")
+    for key, value in proposal.items():
+        print(f"- {key}: {value}")
+    print("- 動作：確認後以相同 request_id 呼叫寫入工具兩次")
+    answer = input('若要執行，請完整輸入「確認建立」：').strip()
+
+    if answer != "確認建立":
+        print("已取消；沒有呼叫寫入工具，也沒有建立檔案。")
+        save_run({
+            "run_id": uuid.uuid4().hex,
+            "mode": "IDEMPOTENCY_TEST",
+            "status": "CANCELLED",
+            "accepted": False,
+            "write_executed": False,
+        })
+        return
+
+    run_id = uuid.uuid4().hex
+    first_call_attempted = False
+    first_result: dict[str, Any] | None = None
+    try:
+        first_call_attempted = True
+        first_result = unpack_tool_result(
+            client.call_tool("create_repair_draft", proposal)
+        )
+        second_result = unpack_tool_result(
+            client.call_tool("create_repair_draft", proposal)
+        )
+
+        passed = (
+            first_result.get("executed") is True
+            and first_result.get("replayed") is False
+            and second_result.get("executed") is False
+            and second_result.get("replayed") is True
+            and first_result.get("draft_id") == second_result.get("draft_id")
+        )
+
+        result = {
+            "run_id": run_id,
+            "mode": "IDEMPOTENCY_TEST",
+            "status": "PASS" if passed else "FAIL",
+            "request_id": proposal["request_id"],
+            "first_result": first_result,
+            "replay_result": second_result,
+            "same_draft_id": first_result.get("draft_id") == second_result.get("draft_id"),
+            "write_executed": first_result.get("executed") is True,
+            "replay_created_new_draft": second_result.get("executed") is True,
+        }
+    except Exception as exc:
+        state_unknown = first_call_attempted and first_result is None
+        result = {
+            "run_id": run_id,
+            "mode": "IDEMPOTENCY_TEST",
+            "status": "WRITE_STATE_UNKNOWN" if state_unknown else "FAIL",
+            "request_id": proposal["request_id"],
+            "first_result": first_result,
+            "error": str(exc),
+            "write_executed": (
+                first_result.get("executed") is True
+                if first_result is not None
+                else None
+            ),
+            "replay_created_new_draft": False,
+        }
+
+    save_run(result)
+    print("\nW02 測試結果：")
+    print(json.dumps(result, ensure_ascii=False, indent=2))
 
 def gemini_live_read(client: MCPClient) -> dict[str, Any] | None:
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
@@ -601,36 +696,38 @@ def main() -> None:
     last_read: dict[str, Any] | None = None
     try:
         while True:
-            print("\n選單： 1 查詢修繕資訊 | 2 建立報修草稿 | 3 Gemini Live 查詢 | 4 重現輸入錯誤 | 5 顯示 MCP tools/list | 0 離開")
+            print("\n選單： 1 查詢修繕資訊 | 2 建立報修草稿 | 3 Gemini Live 查詢 | 4 重現輸入錯誤 | 5 顯示 MCP tools/list | 6 W02 同 ID 重送測試 | 0 離開")
             choice = input("請輸入選項：").strip()
             if choice == "1":
+                last_read = None
                 last_read = read_info(client)
             elif choice == "2":
                 create_draft(client, last_read)
             elif choice == "3":
+                last_read = None
                 result = gemini_live_read(client)
                 if result:
                     last_read = result
             elif choice == "4":
+                last_read = None
                 run_id = uuid.uuid4().hex
-                raw = client.call_tool("get_repair_information", {"problem_description": "", "location": "學生宿舍"})
+                raw = client.call_tool(
+                    "get_repair_information",
+                    {
+                        "problem_description": "",
+                        "location": "學生宿舍",
+                    },
+                )
                 print("\n預期失敗結果：")
                 print(json.dumps(raw, ensure_ascii=False, indent=2))
-                print("這是本機 MCP 輸入驗證案例，不是 Gemini LIVE_FAIL。")
-                save_run({
-                    "run_id": run_id,
-                    "mode": "REPRODUCIBLE_LOCAL_FAILURE",
-                    "status": "EXPECTED_TOOL_ERROR" if raw.get("isError") else "UNEXPECTED_PASS",
-                    "input": {"problem_description": "", "location": "學生宿舍"},
-                    "mcp_tool_result": raw,
-                    "write_executed": False,
-                })
             elif choice == "5":
                 show_tools(client)
+            elif choice == "6":
+                run_idempotency_test(client, last_read)
             elif choice == "0":
                 break
             else:
-                print("請輸入 0–5。")
+                print("請輸入 0–。")
     except (EOFError, KeyboardInterrupt):
         print("\n已結束。")
     finally:
