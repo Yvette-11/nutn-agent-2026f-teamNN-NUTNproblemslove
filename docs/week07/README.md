@@ -50,7 +50,7 @@
 
 | 案例 | 預期結果 | 實際結果／證據 |
 |---|---|---|
-| C01 正常主流程 | 原修繕任務正常完成；工具結果與回答一致 | NOT_RUN；尚無 Week 07 Candidate 的真實 Gemini 成功紀錄 |
+| C01 正常主流程 | 原修繕任務正常完成；工具結果與回答一致 | LIVE_FAIL；run_id=4acfa6fe0e51458faf35b5bba3f43d4c；model=gemini-3.6-flash；error=503 UNAVAILABLE；本輪停止，未能驗證正常回答與 Evaluator 流程。 |
 | C02 跨使用者隔離 | 不同使用者不能讀到彼此資料 | NOT_RUN／不適用：CLI 沒有登入或使用者身分；本週增量只使用 process-local session 記憶，未實作多使用者記憶儲存 |
 | C03 同一 session 失敗後清除 | 新查詢失敗後，選項 2 不沿用舊查詢結果 | PASS；run_id=`96b40faac0b44210b3265cde5626f5e6`；status=`BLOCKED_NO_CURRENT_READ`；write_executed=`false` |
 | C04 新 session 不沿用舊結果 | 重新啟動後，選項 2 不使用上一個 session 的查詢結果 | PASS；run_id=`9b75ad4b4e60458e9f4f7a7fbaf4d93b`；status=`BLOCKED_NO_CURRENT_READ`；write_executed=`false` |
