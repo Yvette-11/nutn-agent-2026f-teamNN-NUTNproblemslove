@@ -9,13 +9,168 @@ import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Literal
 from langchain.agents import create_agent
 from langchain.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
+from pydantic import BaseModel
 
 
 ROOT = Path(__file__).resolve().parent
+class GroundingEvaluation(BaseModel):
+    verdict: Literal["pass", "revise"]
+    unsupported_claims: list[str]
+    feedback: str
+
+def evaluate_grounding(
+    chat_model: ChatGoogleGenerativeAI,
+    problem: str,
+    location: str,
+    evidence: dict[str, Any],
+    draft: str,
+) -> GroundingEvaluation:
+    evaluator = chat_model.with_structured_output(
+        GroundingEvaluation.model_json_schema(),
+        method="json_schema",
+    )
+
+    messages = [
+        (
+            "system",
+            "你是回答內容的 evidence 評估器。"
+            "只能用提供的 evidence 核對 draft 中的事實主張。"
+            "若有任何主張無法由 evidence 支持，verdict 必須是 revise，"
+            "並列出 unsupported_claims 和具體 feedback。"
+            "若每項事實主張都受 evidence 支持，verdict 才能是 pass。"
+            "不得自行補充資料。",
+        ),
+        (
+            "human",
+            f"問題：{problem}\n"
+            f"地點：{location}\n"
+            f"Evidence：{json.dumps(evidence, ensure_ascii=False)}\n"
+            f"待評估回答：{draft}",
+        ),
+    ]
+
+    result = evaluator.invoke(messages)
+    return GroundingEvaluation.model_validate(result)
+
+def grounding_passed(evaluation: GroundingEvaluation) -> bool:
+    return (
+        evaluation.verdict == "pass"
+        and not evaluation.unsupported_claims
+    )
+
+def run_grounding_cycle(
+    draft: str,
+    evaluate: Callable[[str], GroundingEvaluation],
+    revise: Callable[[str, GroundingEvaluation], str],
+) -> dict[str, Any]:
+    evaluation_trace = []
+
+    first_evaluation = evaluate(draft)
+    evaluation_trace.append({
+        "draft": draft,
+        "evaluation": first_evaluation.model_dump(),
+    })
+
+    if grounding_passed(first_evaluation):
+        return {
+            "status": "PASS",
+            "final_answer": draft,
+            "revision_attempts": 0,
+            "evaluation_trace": evaluation_trace,
+        }
+
+    revised_draft = revise(draft, first_evaluation)
+    if not revised_draft.strip():
+        return {
+            "status": "GROUNDING_REJECTED",
+            "final_answer": None,
+            "revision_attempts": 1,
+            "evaluation_trace": evaluation_trace,
+        }
+
+    second_evaluation = evaluate(revised_draft)
+    evaluation_trace.append({
+        "draft": revised_draft,
+        "evaluation": second_evaluation.model_dump(),
+    })
+
+    if not grounding_passed(second_evaluation):
+        return {
+            "status": "GROUNDING_REJECTED",
+            "final_answer": None,
+            "revision_attempts": 1,
+            "evaluation_trace": evaluation_trace,
+        }
+
+    return {
+        "status": "PASS",
+        "final_answer": revised_draft,
+        "revision_attempts": 1,
+        "evaluation_trace": evaluation_trace,
+    }
+
+def run_grounding_boundary_test() -> dict[str, Any]:
+    run_id = uuid.uuid4().hex
+    unsupported_claim = "需要填寫寢室房號"
+
+    fixed_evaluations = iter([
+        GroundingEvaluation(
+            verdict="revise",
+            unsupported_claims=[unsupported_claim],
+            feedback="提供的 evidence 沒有要求填寫寢室房號。",
+        ),
+        GroundingEvaluation(
+            verdict="revise",
+            unsupported_claims=[unsupported_claim],
+            feedback="修訂後仍包含 evidence 未支持的寢室房號要求。",
+        ),
+    ])
+
+    call_counts = {"evaluate": 0, "revise": 0}
+
+    def fixed_evaluate(draft: str) -> GroundingEvaluation:
+        call_counts["evaluate"] += 1
+        return next(fixed_evaluations)
+
+    def fixed_revise(
+        draft: str,
+        evaluation: GroundingEvaluation,
+    ) -> str:
+        call_counts["revise"] += 1
+        return draft
+
+    initial_draft = "請透過修繕系統報修，並填寫寢室房號。"
+    cycle_result = run_grounding_cycle(
+        draft=initial_draft,
+        evaluate=fixed_evaluate,
+        revise=fixed_revise,
+    )
+
+    if cycle_result["status"] != "GROUNDING_REJECTED":
+        raise AssertionError("預期修訂後仍不通過時應回傳 GROUNDING_REJECTED")
+    if cycle_result["revision_attempts"] != 1:
+        raise AssertionError("預期最多修訂一次")
+    if call_counts != {"evaluate": 2, "revise": 1}:
+        raise AssertionError(f"評估或修訂次數不符：{call_counts}")
+
+    result = {
+        "run_id": run_id,
+        "mode": "LOCAL_GROUNDING_BOUNDARY_TEST",
+        **cycle_result,
+        "stop_reason": "revision_limit_reached_with_unsupported_claims",
+        "answer_displayed": False,
+        "write_executed": False,
+        "test_call_counts": call_counts,
+    }
+    save_run(result)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return result
+
+
 SERVER_PATH = ROOT / "mcp_server.py"
 RUNS_DIR = ROOT / "runs"
 
@@ -256,6 +411,10 @@ def gemini_live_read(client: MCPClient) -> dict[str, Any] | None:
         return json.dumps(value, ensure_ascii=False)
 
     try:
+        if os.environ.get("WEEK06_INJECT_PROVIDER_FAILURE") == "1":
+            raise RuntimeError(
+                "INJECTED_PROVIDER_FAILURE: Week 06 controlled failure test"
+            )
         chat_model = ChatGoogleGenerativeAI(
             model=model,
             api_key=api_key,
@@ -312,11 +471,68 @@ def gemini_live_read(client: MCPClient) -> dict[str, Any] | None:
             ).strip()
         else:
             final_text = str(content).strip()
-        if not final_text:
-            raise RuntimeError("LIVE_FAIL: tool result 後沒有取得 Gemini 文字摘要")
 
         tool_value = tool_results[0]
         function_call = model_tool_calls[0]
+
+        if not final_text:
+            raise RuntimeError("LIVE_FAIL: tool result 後沒有取得 Gemini 文字摘要")
+
+        def evaluate_candidate(candidate: str) -> GroundingEvaluation:
+            return evaluate_grounding(
+                chat_model=chat_model,
+                problem=problem,
+                location=location,
+                evidence=tool_value,
+                draft=candidate,
+            )
+
+        def revise_candidate(
+            candidate: str,
+            evaluation: GroundingEvaluation,
+        ) -> str:
+            revision_message = [
+                (
+                    "system",
+                    "請依照評估意見修正回答。只能使用提供的 evidence，"
+                    "刪除沒有 evidence 支持的主張，不得自行補充資訊。",
+                ),
+                (
+                    "human",
+                    f"Evidence：{json.dumps(tool_value, ensure_ascii=False)}\n"
+                    f"原回答：{candidate}\n"
+                    f"評估意見：{evaluation.feedback}\n"
+                    f"未支持主張：{json.dumps(evaluation.unsupported_claims, ensure_ascii=False)}",
+                ),
+            ]
+            revised = chat_model.invoke(revision_message)
+            return str(revised.content).strip()
+
+        grounding_result = run_grounding_cycle(
+            draft=final_text,
+            evaluate=evaluate_candidate,
+            revise=revise_candidate,
+        )
+        evaluation_trace = grounding_result["evaluation_trace"]
+
+        if grounding_result["status"] == "GROUNDING_REJECTED":
+            print("\nGROUNDING_REJECTED：修訂一次後仍未通過 evidence 檢查，停止顯示回答。")
+            save_run({
+                "run_id": run_id,
+                "mode": "GEMINI_LIVE",
+                "status": "GROUNDING_REJECTED",
+                "model": model,
+                "input": {"problem_description": problem, "location": location},
+                "evaluation_trace": evaluation_trace,
+                "revision_attempts": grounding_result["revision_attempts"],
+                "answer_displayed": False,
+                "write_executed": False,
+            })
+            return None
+
+        final_text = grounding_result["final_answer"]
+
+        
         print("\n" + "Gemini 最終回答：" + "\n" + final_text)
         print("\n" + f"LIVE_PASS | framework=LangChain create_agent | model={model} | run_id={run_id}")
         value = {
@@ -330,6 +546,8 @@ def gemini_live_read(client: MCPClient) -> dict[str, Any] | None:
             "mcp_tool_result": tool_value,
             "tool_response_returned_to_agent": True,
             "final_answer": final_text,
+            "evaluation_trace": evaluation_trace,
+            "grounding_status": "PASS",
             "usage_metadata": getattr(final_message, "usage_metadata", None) or "not returned",
             "write_executed": False,
         }
@@ -337,16 +555,30 @@ def gemini_live_read(client: MCPClient) -> dict[str, Any] | None:
         return {**tool_value, "problem_description": problem, "location": location}
     except Exception as exc:
         reason = str(exc)
-        print("\n" + f"LIVE_FAIL | {reason}" + "\n" + "本輪停止；沒有自動重送。")
+        injected = reason.startswith("INJECTED_PROVIDER_FAILURE:")
+
+        if injected:
+            mode = "INJECTED_PROVIDER_FAILURE"
+            status = "EXPECTED_INJECTED_FAILURE"
+            error_source = "test_switch"
+            label = "EXPECTED_INJECTED_FAILURE"
+        else:
+            mode = "GEMINI_LIVE"
+            status = "LIVE_FAIL"
+            error_source = "provider_or_tool"
+            label = "LIVE_FAIL"
+
+        print(f"\n{label} | {reason}\n本輪停止；沒有自動重送。")
         save_run({
             "run_id": run_id,
-            "mode": "GEMINI_LIVE",
-            "status": "LIVE_FAIL",
+            "mode": mode,
+            "status": status,
             "framework": "langchain.create_agent",
             "model": model,
             "input": {"problem_description": problem, "location": location},
             "tool_calls": tool_invocations,
             "mcp_tool_results": tool_results,
+            "error_source": error_source,
             "error": reason,
             "write_executed": False,
         })
