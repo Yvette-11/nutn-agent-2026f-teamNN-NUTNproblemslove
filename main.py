@@ -467,11 +467,8 @@ def run_idempotency_test(
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 def gemini_live_read(client: MCPClient) -> dict[str, Any] | None:
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip()
-    if not api_key:
-        print("找不到 GEMINI_API_KEY。先用一般查詢／草稿功能；要做 Live 測試時，依 README 建立 .env。")
-        return None
+
 
     problem = input("請用一句話描述問題（此模式目前支援宿舍空調）：").strip()
     location = input("問題地點：").strip()
@@ -512,7 +509,9 @@ def gemini_live_read(client: MCPClient) -> dict[str, Any] | None:
             )
         chat_model = ChatGoogleGenerativeAI(
             model=model,
-            api_key=api_key,
+            vertexai=True,
+            project="gen-lang-client-0106448579",
+            location="us-central1",
             temperature=1.0,
             retries=0,
             request_timeout=120,

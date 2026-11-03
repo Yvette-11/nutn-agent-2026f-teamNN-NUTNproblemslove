@@ -86,16 +86,31 @@ notepad .env
 
 將以下說明文字替換成自己的實際設定，兩項各占一行：
 
-```dotenv
-GEMINI_API_KEY=自己的API金鑰
-GEMINI_MODEL=帳號可用且支援function_calling的模型ID
-```
+# Gemini Live 使用 Vertex AI 和本機 ADC，不需 API key。
+GEMINI_MODEL=gemini-3.6-flash
 
 儲存後重新啟動程式。不要將 .env 或金鑰上傳 GitHub。
 
 Gemini Live 會將問題、地點及工具結果傳送至 Google Gemini API，並可能產生 API 用量。請使用虛構資料，避免輸入姓名、房號或其他不必要的個資。
 
 本 README 提供 API key 啟動方式；目前提供的紀錄尚不足以確認 Google Cloud／ADC 驗證成功，因此不宣稱已完成 ADC 要求。
+
+### Vertex AI／ADC 設定
+
+Gemini Live 使用 Google Cloud Vertex AI，透過本機 Application Default Credentials（ADC）驗證；`.env` 不需要放 API key。先安裝 Google Cloud CLI，並在專案終端機執行：
+
+```powershell
+gcloud.cmd auth application-default login
+gcloud.cmd config set project gen-lang-client-0106448579
+gcloud.cmd auth application-default set-quota-project gen-lang-client-0106448579
+gcloud.cmd services enable aiplatform.googleapis.com --project=gen-lang-client-0106448579
+```
+
+完成設定後，執行 `start.bat`，選擇 `3` 進行 Gemini Live 查詢。請勿提交 ADC 憑證檔或 `.env`。
+
+### Gemini Live 實測狀態
+
+2026-11-04 的 ADC／Vertex AI 實際呼叫結果為 `LIVE_FAIL`，run_id=`e53eeb6ac8ac4f27986cf79246f5026b`。請求因專案未啟用計費而回傳 `BILLING_DISABLED`；沒有模型回答、沒有工具呼叫，也沒有建立草稿。本專案目前未啟用計費，因此尚無 ADC `LIVE_PASS` 紀錄。
 
 ## 啟動方式
 
