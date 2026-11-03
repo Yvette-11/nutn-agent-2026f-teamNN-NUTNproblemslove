@@ -1,6 +1,8 @@
 # 期中報告示範證據索引
 
-報告版本：`week07-memory` 分支，commit 短 SHA `cb6e4cd`
+分支：`week07-memory`
+本機 MCP 示範影片錄製版本：`cb6e4cd`（影片檔名也標有此版本）
+ADC／Vertex AI 測試程式版本：`a26c5f219bf84e7dffcfbffc3e141a32d1d3a8e3`
 錄製日期：2026-11-03
 
 ## 本機 MCP 示範影片
@@ -15,4 +17,3 @@
 - 以上影片是本機 CLI／MCP 操作錄影。
 - Gemini Live 的實際結果需依各次執行紀錄標示 `LIVE_PASS`、`LIVE_FAIL` 或 `LIVE_NOT_RUN`。
 - 2026-11-04 ADC／Vertex AI 實際呼叫：`LIVE_FAIL`，run_id=`e53eeb6ac8ac4f27986cf79246f5026b`。錯誤原因為 `BILLING_DISABLED`；請求在模型回覆前被拒絕，`tool_calls` 為空，未取得工具結果，`write_executed=false`。本次不啟用計費，因此目前沒有 ADC `LIVE_PASS`。執行紀錄：[gemini_live_adc_fail_billing_disabled.json](gemini_live_adc_fail_billing_disabled.json)
-- 測試時使用的是尚未提交的 ADC 版 `main.py`；待程式提交後，再補上對應的 commit SHA。
