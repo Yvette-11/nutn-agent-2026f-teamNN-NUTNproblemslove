@@ -15,5 +15,5 @@ ADC／Vertex AI 測試程式版本：`a26c5f219bf84e7dffcfbffc3e141a32d1d3a8e3`
 ## 限制與待補驗證
 
 - 以上影片是本機 CLI／MCP 操作錄影。
-- Gemini Live 的實際結果需依各次執行紀錄標示 `LIVE_PASS`、`LIVE_FAIL` 或 `LIVE_NOT_RUN`。
+- Gemini Live 的實際結果需依各次執行紀錄標示 `LIVE_PASS`、`LIVE_FAIL` 或 `LIVE_NOT_RUN`。後續補驗證計畫：若取得課程或組員授權、且已啟用 Vertex AI 的測試專案，將把 `main.py` 的 project 設定改為該專案，再執行一次正常 Gemini Live 流程，保存執行日期、commit SHA、run_id 與實際狀態。取得授權前維持目前計費關閉設定，不再呼叫 Gemini Live。
 - 2026-11-04 ADC／Vertex AI 實際呼叫：`LIVE_FAIL`，run_id=`e53eeb6ac8ac4f27986cf79246f5026b`。錯誤原因為 `BILLING_DISABLED`；請求在模型回覆前被拒絕，`tool_calls` 為空，未取得工具結果，`write_executed=false`。本次不啟用計費，因此目前沒有 ADC `LIVE_PASS`。執行紀錄：[gemini_live_adc_fail_billing_disabled.json](gemini_live_adc_fail_billing_disabled.json)
