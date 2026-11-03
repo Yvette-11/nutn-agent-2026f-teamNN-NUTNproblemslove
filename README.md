@@ -133,6 +133,6 @@ py -3 main.py
 
 若無法啟動，請確認 Python 與 requirements.txt 套件已安裝；Gemini 失敗時，請查看 `runs/` 的錯誤，檢查金鑰、模型、配額與網路。
 
-###SHA
+### SHA
 
 cb6e4cd045ac1ae585cbc9152d33fc5f4e6fc318
