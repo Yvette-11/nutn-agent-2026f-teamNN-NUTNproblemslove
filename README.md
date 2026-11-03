@@ -75,3 +75,67 @@ Gemini Live 會透過 HTTPS 傳送你輸入的問題和地點給 Google Gemini A
 
 5aa6e99f95300a6504924bdca253f6a8bc216bb0
 
+___________________________
+## 環境設定
+
+- Windows、Python 3.11 以上版本。
+- 本程式只使用 Python 標準函式庫，不需另外安裝套件。
+- 解壓縮專案，保留 `main.py`、`mcp_server.py`、`knowledge.json` 等檔案。
+
+確認 Python 版本：
+
+```powershell
+py -3 --version
+```
+
+### Gemini 設定（選用）
+
+離線功能不需要 API key。使用 Gemini Live 前，在專案資料夾執行：
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+填入設定並儲存：
+
+```dotenv
+GEMINI_API_KEY=自己的API金鑰
+GEMINI_MODEL=帳號可用且支援function_calling的模型ID
+```
+
+修改後請重新啟動程式。不要將 `.env` 或金鑰上傳 GitHub。
+
+## 啟動方式
+
+雙擊 `start.bat`，或在專案資料夾開啟 PowerShell 執行：
+
+```powershell
+py -3 main.py
+```
+
+主程式會自動啟動 MCP Server，不需另外執行。
+
+## 操作步驟
+
+| 選項 | 功能 | 操作說明 |
+|---|---|---|
+| `1` | 查詢修繕資訊 | 輸入「宿舍冷氣壞掉了」及「學生宿舍」 |
+| `2` | 建立本機草稿 | 先成功查詢，再填寫單位與建築，輸入「確認建立」才寫入 |
+| `3` | Gemini Live 查詢 | 需設定 API key；模型呼叫唯讀工具後產生摘要 |
+| `4` | 重現輸入錯誤 | 送出空白描述，檢查工具是否拒絕；不呼叫 Gemini |
+| `5` | 查看 MCP 工具 | 列出查詢與草稿工具 |
+| `0` | 離開 | 結束程式 |
+
+建立草稿時，直接按 Enter 可沿用查詢的問題與地點；若要修改，請先重新查詢。未輸入「確認建立」就會取消寫入。
+
+## 輸出與限制
+
+- `runs/`：本次操作紀錄。
+- `drafts/`：本機 Markdown 草稿。
+- `evidence/`：歷史測試證據，不代表本次已重新測試。
+- 目前僅支援固定資料中的「學生宿舍空調修繕」，不查即時狀態、不送出正式報修。
+- Gemini 的 `LIVE_PASS` 表示模型與工具往返完成，不代表已報修或答案完全正確。
+- 測試請使用虛構資料；分享紀錄前先清除個資與金鑰。
+
+若無法啟動，請確認 Python 已安裝；Gemini 失敗時，請查看 `runs/` 的錯誤，檢查金鑰、模型、配額與網路。
