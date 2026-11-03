@@ -43,34 +43,97 @@ Agent 會協助判斷問題類型、整理回報需要的資訊、建議可能�
 
 | 張傑 | S11182016 | jamisonchang | 蒐集南大校園資料、整理負責單位與解決方式、介面設計、測試 |
 
-# 10/6南大修繕 Agent｜本機示範版
+# 南大修繕 Agent｜
 
-這是一個可在 Windows 本機操作的 Python CLI 範例，包含：
+___________________________
+## 版本資訊
 
-- MCP stdio server：提供 `tools/list`、`tools/call`、`get_repair_information`、`create_repair_draft`。
-- 修繕查詢：目前只支援學生宿舍空調，找不到 evidence 或輸入不支援時會停止。
-- 本機草稿：先顯示內容，只有輸入「確認建立」才呼叫寫入工具；建立後會讀回核對。
-- Gemini Live：可選擇透過 Gemini API 做真實 function calling；不提供寫入工具給模型。
-- 重現失敗：選單 4 會送出空白問題描述，留下 MCP validation failure 紀錄。
+- 本說明採用分支：`week07-memory`
+- 文件更新前的程式版本 SHA：`cb6e4cd045ac1ae585cbc9152d33fc5f4e6fc318`
+- Week 07 測試與證據：[docs/week07/README.md](docs/week07/README.md)
 
-> `knowledge.json` 已整理專題 GitHub 中 `week4-fixed queries、chunk.md` 的三段固定 chunks，查詢結果會回傳 chunk 原文、標題、source_id 與 chunk_id。提交前請確認該 GitHub 文件仍是組員認可的 Week 3 evidence 版本。
+- 
+## 環境設定
 
-## 不用 API key 就能先操作
+- Windows、Python 3.11 以上版本。在專案資料夾開啟 PowerShell，依序執行以下指令。
+- 解壓縮專案，保留 `main.py`、`mcp_server.py`、`knowledge.json` 等檔案。
 
-- 輸入 `5`：列出 MCP tools，存一筆 `MCP_TOOLS_LIST` 紀錄。
-- 輸入 `1`：查詢；可試「宿舍冷氣壞掉了」和「學生宿舍」。
-- 輸入 `2`：在成功查詢後建立本機草稿。輸入完整的「確認建立」才會寫入。
-- 輸入 `4`：重現空白問題描述的失敗案例。這是本機 MCP validation failure，不會冒充 Gemini Live failure。
-- 輸入 `0`：離開。
+確認 Python 版本：
 
-每次操作的 JSON 紀錄會寫在 `runs/`。草稿放在 `drafts/`。請用虛構樓棟／測試資料做課堂展示；不要把個資、API key 或 `.env` 上傳。
+```powershell
+py -3 --version
+```
 
-## 設定 Gemini Live
+依照目前分支的 requirements.txt 安裝套件：
 
-程式只把 `get_repair_information` 唯讀函式提供給 Gemini。模型回傳 function call 後，Host 透過本機 MCP server 執行，將結果回傳 Gemini，再顯示最終摘要。寫入工具不提供給模型。成功／失敗紀錄會分別標記 `LIVE_PASS`／`LIVE_FAIL`；沒有 key 時不會假裝已做 live 測試。
+```powershell
+py -3 -m pip install -r requirements.txt
+```
 
-Gemini Live 會透過 HTTPS 傳送你輸入的問題和地點給 Google Gemini API，並可能產生 API 用量。避免輸入房號、姓名或其他不必要的個人資訊。
+### Gemini 設定
 
-### SHA
+離線功能不需要 API key。使用 Gemini Live 前，若尚未建立 .env，請執行：
 
-5aa6e99f95300a6504924bdca253f6a8bc216bb0
+```powershell
+Copy-Item .env.example .env
+```
+
+若已有 .env，不需重新複製。開啟設定檔：
+
+```powershell
+notepad .env
+```
+
+將以下說明文字替換成自己的實際設定，兩項各占一行：
+
+```dotenv
+GEMINI_API_KEY=自己的API金鑰
+GEMINI_MODEL=帳號可用且支援function_calling的模型ID
+```
+
+儲存後重新啟動程式。不要將 .env 或金鑰上傳 GitHub。
+
+Gemini Live 會將問題、地點及工具結果傳送至 Google Gemini API，並可能產生 API 用量。請使用虛構資料，避免輸入姓名、房號或其他不必要的個資。
+
+本 README 提供 API key 啟動方式；目前提供的紀錄尚不足以確認 Google Cloud／ADC 驗證成功，因此不宣稱已完成 ADC 要求。
+
+## 啟動方式
+
+雙擊 `start.bat`，或在專案資料夾開啟 PowerShell 執行：
+
+```powershell
+py -3 main.py
+```
+
+主程式會自動啟動 MCP Server，不需另外執行。
+
+## 操作步驟
+
+| 選項 | 功能 | 操作說明 |
+|---|---|---|
+| `1` | 查詢修繕資訊 | 輸入「宿舍冷氣壞掉了」及「學生宿舍」 |
+| `2` | 建立本機草稿 | 先成功查詢，再填寫單位與建築，輸入「確認建立」才寫入 |
+| `3` | Gemini Live 查詢 | 需設定 API key；模型呼叫唯讀工具後產生摘要 |
+| `4` | 重現輸入錯誤 | 送出空白描述，檢查工具是否拒絕；不呼叫 Gemini |
+| `5` | 查看 MCP 工具 | 列出查詢與草稿工具 |
+| 6 | 同 ID 重送測試 | 檢查同一請求重送是否避免重複建立草稿；請使用測試資料 |
+| `0` | 離開 | 結束程式 |
+
+建立草稿時，直接按 Enter 可沿用查詢的問題與地點；若要修改，請先重新查詢。未輸入「確認建立」就會取消寫入。
+
+## 輸出與限制
+
+- `runs/`：本次操作紀錄。
+- `drafts/`：本機 Markdown 草稿。
+- `evidence/`：歷史測試證據，不代表本次已重新測試。
+- 目前僅支援固定資料中的「學生宿舍空調修繕」，不查即時狀態、不送出正式報修。
+- Week 07 已記錄 session 清除、重新啟動隔離、拒絕寫入及同 ID 重送測試結果。
+- Week 07 正常 Gemini 案例目前記錄為 LIVE_FAIL（503 UNAVAILABLE），尚未取得該候選版本的正常成功證據。
+- 完整測試狀態與限制請查看 docs/week07/README.md。
+
+若無法啟動，請確認 Python 與 requirements.txt 套件已安裝；Gemini 失敗時，請查看 `runs/` 的錯誤，檢查金鑰、模型、配額與網路。
+
+###SHA
+
+cb6e4cd045ac1ae585cbc9152d33fc5f4e6fc318
+ 
