@@ -113,6 +113,37 @@ def get_repair_information(args: dict[str, Any], state: dict[str, Any]) -> dict[
     return result
 
 
+# Narrow projections: each role can request only its own evidence capability.
+MAS_TOOLS = {
+    "read_repair_route": ("routing", ("repair_system", "repair_category"), "route", "route-v1"),
+    "read_application_fields": ("requirements", ("required_information",), "fields", "fields-v1"),
+}
+for name, (owner, fields, task, version) in MAS_TOOLS.items():
+    TOOLS.append({
+        "name": name, "description": "唯讀、角色限定的固定修繕 evidence 查詢",
+        "inputSchema": {"type": "object", "properties": {
+            k: {"type": "string"} for k in
+            ("problem_description", "location", "role", "task_id", "version")},
+            "required": ["problem_description", "location", "role", "task_id", "version"],
+            "additionalProperties": False},
+        "annotations": {"readOnlyHint": True, "destructiveHint": False},
+    })
+
+
+def scoped_read(name, args):
+    owner, fields, task, version = MAS_TOOLS[name]
+    expected = {"problem_description", "location", "role", "task_id", "version"}
+    if set(args) != expected or args["role"] != owner or args["task_id"] != task or args["version"] != version:
+        raise ToolFailure("ROLE_OR_CONTRACT_DENIED: invalid owner/task/version/fields")
+    # Do not grant the existing write flow a verified-read capability.
+    value = get_repair_information(args, {})
+    chunk_ids = {"NUTN-DORM-REPAIR-001", "NUTN-DORM-REPAIR-002"} if owner == "routing" else {"NUTN-DORM-REPAIR-003"}
+    return {**{k: value[k] for k in fields}, "source_id": value["source_id"],
+            "evidence": [c for c in value["evidence"] if c["chunk_id"] in chunk_ids],
+            "version": version, "owner": owner, "task_id": task,
+            "limitations": "固定 repository evidence；非即時資訊，尚未送出報修"}
+
+
 def load_registry() -> dict[str, Any]:
     if not REGISTRY_PATH.exists():
         return {}
@@ -203,11 +234,11 @@ def dispatch(message: dict[str, Any], state: dict[str, Any]) -> dict[str, Any] |
     elif method == "tools/call":
         name = params.get("name")
         args = params.get("arguments") or {}
-        if name not in {"get_repair_information", "create_repair_draft"}:
+        if name not in {"get_repair_information", "create_repair_draft", *MAS_TOOLS}:
             result = tool_result({"error": "UNKNOWN_TOOL", "message": str(name)}, True)
         else:
             try:
-                value = get_repair_information(args, state) if name == "get_repair_information" else create_repair_draft(args, state)
+                value = scoped_read(name, args) if name in MAS_TOOLS else (get_repair_information(args, state) if name == "get_repair_information" else create_repair_draft(args, state))
                 result = tool_result(value)
             except ToolFailure as exc:
                 result = tool_result({"error": str(exc).split(":", 1)[0], "message": str(exc)}, True)
